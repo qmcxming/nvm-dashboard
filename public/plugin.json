@@ -1,0 +1,17 @@
+{
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "nvm",
+      "explain": "基于NVM和uTools的可视化node版本切换应用。",
+      "cmds": [
+        "nvm"
+      ]
+    }
+  ]
+}
