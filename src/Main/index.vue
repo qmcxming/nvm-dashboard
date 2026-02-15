@@ -30,13 +30,14 @@ const currentNodeNumber = computed(() => {
 const loadingAvailable = ref<boolean>(false);
 const loadingInstalled = ref<boolean>(false);
 const loadingAll = ref<boolean>(false);
+const loadingCustomInstalled = ref<boolean>(false);
 const installingVersion = ref<string>('');
 const uninstallingVersion = ref<string>('');
 const switchingVersion = ref<string>('');
 const errorMessage = ref<string>('');
 const drawerOpen = ref<boolean>(false);
 const showInstructions = ref<boolean>(false);
-const viewMode = ref<'available' | 'installed'>('available');
+const viewMode = ref<'available' | 'installed'>('installed');
 const toasts = ref<{ id: number; message: string; type: 'error' | 'info' }[]>(
   [],
 );
@@ -254,7 +255,9 @@ const handleCustomInstall = async () => {
     return;
   }
   customVersion.value = '';
+  loadingCustomInstalled.value = true;
   await handleInstall(version);
+  loadingCustomInstalled.value = false;
 };
 
 const handleUninstall = async (version: string) => {
@@ -312,10 +315,13 @@ const openPreviousReleases = () => {
 };
 
 onMounted(() => {
+  loadingAll.value = true;
   checkNvm().then(() => {
     if (!nvmInstalled.value) return;
     refreshInstalled();
     refreshCurrentNode();
+  }).finally(() => {
+    loadingAll.value = false;
   });
 });
 </script>
@@ -340,17 +346,17 @@ onMounted(() => {
       <nav class="menu" aria-label="视图切换">
         <button
           class="menu-item"
-          :class="{ active: viewMode === 'available' }"
-          @click="viewMode = 'available'"
-        >
-          可用版本
-        </button>
-        <button
-          class="menu-item"
           :class="{ active: viewMode === 'installed' }"
           @click="viewMode = 'installed'"
         >
           已安装
+        </button>
+        <button
+          class="menu-item"
+          :class="{ active: viewMode === 'available' }"
+          @click="viewMode = 'available'"
+        >
+          可用版本
         </button>
       </nav>
       <div class="actions">
@@ -358,6 +364,7 @@ onMounted(() => {
           class="ghost"
           :disabled="loadingAvailable || loadingInstalled"
           @click="refreshAll"
+          title="刷新全部"
         >
           <span class="icon" aria-hidden="true">
             <svg
@@ -434,7 +441,8 @@ onMounted(() => {
             :disabled="!customVersion.trim() || installingVersion !== ''"
             @click="handleCustomInstall"
           >
-            安装指定版本
+            <span v-if="loadingCustomInstalled">正在安装中...</span>
+            <span v-else>安装指定版本</span>
           </button>
         </div>
         <div class="table-scroll">
@@ -496,7 +504,8 @@ onMounted(() => {
               <span>操作</span>
             </div>
             <div v-if="installedVersions.length === 0" class="table-row empty">
-              <span>暂无已安装版本。</span>
+              <span v-if="loadingInstalled">加载中...</span>
+              <span v-else @click="refreshInstalled">暂无已安装版本</span>
             </div>
             <div
               v-for="version in installedVersions"
@@ -874,6 +883,11 @@ h1 {
   font-size: 12px;
   color: #8c8c8c;
   cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.refresh-icon:hover {
+  color: #000;
 }
 
 .table {
