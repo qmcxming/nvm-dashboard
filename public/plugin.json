@@ -8,9 +8,10 @@
   "features": [
     {
       "code": "nvm",
-      "explain": "基于NVM和uTools的可视化node版本切换应用。",
+      "explain": "基于NVM和uTools的可视化node版本管理应用。",
       "cmds": [
-        "nvm"
+        "nvm",
+        "nvm-ui"
       ]
     }
   ]

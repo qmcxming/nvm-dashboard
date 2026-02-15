@@ -1,290 +1,332 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue';
 
 defineProps({
   enterAction: {
     type: Object,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
 type AvailableVersion = {
-  version: string
-  label: string
-}
+  version: string;
+  label: string;
+};
 
 type CommandResult = {
-  stdout: string
-  stderr: string
-}
+  stdout: string;
+  stderr: string;
+};
 
-const availableVersions = ref<AvailableVersion[]>([])
-const installedVersions = ref<string[]>([])
-const nvmInstalled = ref<boolean>(false)
-const nvmVersion = ref<string>('')
-const currentNodeVersion = ref<string>('--')
+const availableVersions = ref<AvailableVersion[]>([]);
+const installedVersions = ref<string[]>([]);
+const nvmInstalled = ref<boolean>(false);
+const nvmVersion = ref<string>('');
+const currentNodeVersion = ref<string>('--');
 const currentNodeNumber = computed(() => {
-  const match = currentNodeVersion.value.match(/\d+\.\d+\.\d+/)
-  return match ? match[0] : ''
-})
-const loadingAvailable = ref<boolean>(false)
-const loadingInstalled = ref<boolean>(false)
-const installingVersion = ref<string>('')
-const uninstallingVersion = ref<string>('')
-const switchingVersion = ref<string>('')
-const errorMessage = ref<string>('')
-const drawerOpen = ref<boolean>(false)
-const viewMode = ref<'available' | 'installed'>('available')
-const toasts = ref<{ id: number; message: string; type: 'error' | 'info' }[]>([])
-let toastSeed = 0
-const customVersion = ref<string>('')
+  const match = currentNodeVersion.value.match(/\d+\.\d+\.\d+/);
+  return match ? match[0] : '';
+});
+const loadingAvailable = ref<boolean>(false);
+const loadingInstalled = ref<boolean>(false);
+const loadingAll = ref<boolean>(false);
+const installingVersion = ref<string>('');
+const uninstallingVersion = ref<string>('');
+const switchingVersion = ref<string>('');
+const errorMessage = ref<string>('');
+const drawerOpen = ref<boolean>(false);
+const showInstructions = ref<boolean>(false);
+const viewMode = ref<'available' | 'installed'>('available');
+const toasts = ref<{ id: number; message: string; type: 'error' | 'info' }[]>(
+  [],
+);
+let toastSeed = 0;
+const customVersion = ref<string>('');
+const commandTip = ref<string>('等待执行命令');
 
 const currentHasList = computed(() => {
-  if (viewMode.value === 'available') return availableVersions.value.length > 0
-  return installedVersions.value.length > 0
-})
+  if (viewMode.value === 'available') return availableVersions.value.length > 0;
+  return installedVersions.value.length > 0;
+});
 const currentEmptyText = computed(() => {
-  if (viewMode.value === 'available') return '暂无可用版本。'
-  return '暂无已安装版本。'
-})
+  if (viewMode.value === 'available') return '暂无可用版本。';
+  return '暂无已安装版本。';
+});
 
 const execNvm = (args: string) => {
-  const services = (window as any).services
+  const services = (window as any).services;
   if (!services?.execNvm) {
-    return Promise.reject(new Error('当前环境未注入命令执行能力。'))
+    return Promise.reject(new Error('当前环境未注入命令执行能力。'));
   }
-  return services.execNvm(args) as Promise<CommandResult>
-}
+  commandTip.value = `nvm ${args}`;
+  return services.execNvm(args) as Promise<CommandResult>;
+};
 
 const pushToast = (message: string, type: 'error' | 'info' = 'info') => {
-  const id = toastSeed++
-  toasts.value.push({ id, message, type })
+  const id = toastSeed++;
+  toasts.value.push({ id, message, type });
   setTimeout(() => {
-    toasts.value = toasts.value.filter((item) => item.id !== id)
-  }, 3200)
-}
+    toasts.value = toasts.value.filter((item) => item.id !== id);
+  }, 3200);
+};
 
 const setError = (message: string) => {
-  errorMessage.value = message
-  pushToast(message, 'error')
-}
+  errorMessage.value = message;
+  pushToast(message, 'error');
+};
 
 const setInfo = (message: string) => {
-  pushToast(message, 'info')
-}
+  pushToast(message, 'info');
+};
 
 const parseVersions = (output: string) => {
-  const versions = new Set<string>()
-  const matches = output.match(/\d+\.\d+\.\d+/g) || []
-  matches.forEach((version) => versions.add(version))
+  const versions = new Set<string>();
+  const matches = output.match(/\d+\.\d+\.\d+/g) || [];
+  matches.forEach((version) => versions.add(version));
   return Array.from(versions).sort((a, b) => {
-    const parse = (v: string) => v.split('.').map((item) => Number(item))
-    const [a1, a2, a3] = parse(a)
-    const [b1, b2, b3] = parse(b)
-    if (a1 !== b1) return b1 - a1
-    if (a2 !== b2) return b2 - a2
-    return b3 - a3
-  })
-}
+    const parse = (v: string) => v.split('.').map((item) => Number(item));
+    const [a1, a2, a3] = parse(a);
+    const [b1, b2, b3] = parse(b);
+    if (a1 !== b1) return b1 - a1;
+    if (a2 !== b2) return b2 - a2;
+    return b3 - a3;
+  });
+};
 
 const parseAvailableVersions = (output: string) => {
-  const lines = output.split(/\r?\n/)
-  const items: AvailableVersion[] = []
-  const seen = new Set<string>()
-  let headers: string[] = []
+  const lines = output.split(/\r?\n/);
+  const items: AvailableVersion[] = [];
+  const seen = new Set<string>();
+  let headers: string[] = [];
 
-  const toLabel = (value: string) => value.trim().toUpperCase()
+  const toLabel = (value: string) => value.trim().toUpperCase();
 
   lines.forEach((line) => {
-    if (!line.includes('|')) return
+    if (!line.includes('|')) return;
     const rawCells = line
       .split('|')
       .map((cell) => cell.trim())
-      .filter((cell) => cell.length > 0)
-    if (rawCells.length === 0) return
+      .filter((cell) => cell.length > 0);
+    if (rawCells.length === 0) return;
 
-    const isSeparator = rawCells.every((cell) => /^-+$/.test(cell))
-    if (isSeparator) return
+    const isSeparator = rawCells.every((cell) => /^-+$/.test(cell));
+    if (isSeparator) return;
 
-    if (headers.length === 0 && rawCells.some((cell) => /current|lts|old/i.test(cell))) {
-      headers = rawCells.map((cell) => toLabel(cell))
-      return
+    if (
+      headers.length === 0 &&
+      rawCells.some((cell) => /current|lts|old/i.test(cell))
+    ) {
+      headers = rawCells.map((cell) => toLabel(cell));
+      return;
     }
 
-    if (headers.length === 0) return
+    if (headers.length === 0) return;
 
     rawCells.forEach((cell, index) => {
-      const versionMatch = cell.match(/\d+\.\d+\.\d+/)
-      if (!versionMatch) return
-      const version = versionMatch[0]
-      if (seen.has(version)) return
-      const label = headers[index] || ''
-      items.push({ version, label })
-      seen.add(version)
-    })
-  })
+      const versionMatch = cell.match(/\d+\.\d+\.\d+/);
+      if (!versionMatch) return;
+      const version = versionMatch[0];
+      if (seen.has(version)) return;
+      const label = headers[index] || '';
+      items.push({ version, label });
+      seen.add(version);
+    });
+  });
 
-  const order = ['CURRENT', 'LTS', 'OLD STABLE', 'OLD UNSTABLE']
+  const order = ['CURRENT', 'LTS', 'OLD STABLE', 'OLD UNSTABLE'];
   const labelRank = (label: string) => {
-    const index = order.indexOf(label)
-    return index === -1 ? order.length : index
-  }
+    const index = order.indexOf(label);
+    return index === -1 ? order.length : index;
+  };
 
   return items.sort((a, b) => {
-    const rankDiff = labelRank(a.label) - labelRank(b.label)
-    if (rankDiff !== 0) return rankDiff
-    const parse = (v: string) => v.split('.').map((item) => Number(item))
-    const [a1, a2, a3] = parse(a.version)
-    const [b1, b2, b3] = parse(b.version)
-    if (a1 !== b1) return b1 - a1
-    if (a2 !== b2) return b2 - a2
-    return b3 - a3
-  })
-}
+    const rankDiff = labelRank(a.label) - labelRank(b.label);
+    if (rankDiff !== 0) return rankDiff;
+    const parse = (v: string) => v.split('.').map((item) => Number(item));
+    const [a1, a2, a3] = parse(a.version);
+    const [b1, b2, b3] = parse(b.version);
+    if (a1 !== b1) return b1 - a1;
+    if (a2 !== b2) return b2 - a2;
+    return b3 - a3;
+  });
+};
 
 const refreshAvailable = async () => {
-  loadingAvailable.value = true
+  loadingAvailable.value = true;
   try {
-    const result = await execNvm('list available')
-    availableVersions.value = parseAvailableVersions(result.stdout)
+    const result = await execNvm('list available');
+    availableVersions.value = parseAvailableVersions(result.stdout);
   } catch (error: any) {
-    availableVersions.value = []
-    setError(error.message || '获取可用版本失败。')
+    availableVersions.value = [];
+    setError(error.message || '获取可用版本失败。');
   } finally {
-    loadingAvailable.value = false
+    loadingAvailable.value = false;
   }
-}
+};
 
 const refreshInstalled = async () => {
-  loadingInstalled.value = true
+  loadingInstalled.value = true;
   try {
-    const result = await execNvm('list')
-    installedVersions.value = parseVersions(result.stdout)
+    const result = await execNvm('list');
+    installedVersions.value = parseVersions(result.stdout);
   } catch (error: any) {
-    installedVersions.value = []
-    setError(error.message || '获取已安装版本失败。')
+    installedVersions.value = [];
+    setError(error.message || '获取已安装版本失败。');
   } finally {
-    loadingInstalled.value = false
+    loadingInstalled.value = false;
   }
-}
+};
 
 const refreshCurrentNode = async () => {
   try {
-    const result = await execNvm('current')
-    currentNodeVersion.value = result.stdout.trim() || '--'
+    const result = await execNvm('current');
+    currentNodeVersion.value = result.stdout.trim() || '--';
   } catch {
-    currentNodeVersion.value = '--'
+    currentNodeVersion.value = '--';
   }
-}
+};
 
 const checkNvm = async () => {
-  errorMessage.value = ''
+  errorMessage.value = '';
   try {
-    const result = await execNvm('-v')
-    nvmInstalled.value = true
-    nvmVersion.value = result.stdout.trim()
+    const result = await execNvm('-v');
+    nvmInstalled.value = true;
+    nvmVersion.value = result.stdout.trim();
   } catch (error: any) {
-    nvmInstalled.value = false
-    nvmVersion.value = ''
-    errorMessage.value = ''
+    nvmInstalled.value = false;
+    nvmVersion.value = '';
+    errorMessage.value = '';
   }
-}
+};
 
 const refreshAll = async () => {
-  await checkNvm()
-  if (!nvmInstalled.value) {
-    availableVersions.value = []
-    installedVersions.value = []
-    currentNodeVersion.value = '--'
-    return
+  loadingAll.value = true;
+  try {
+    await checkNvm();
+    if (!nvmInstalled.value) {
+      availableVersions.value = [];
+      installedVersions.value = [];
+      currentNodeVersion.value = '--';
+      return;
+    }
+    await Promise.all([
+      refreshAvailable(),
+      refreshInstalled(),
+      refreshCurrentNode(),
+    ]);
+  } finally {
+    loadingAll.value = false;
   }
-  await Promise.all([refreshAvailable(), refreshInstalled(), refreshCurrentNode()])
-}
+};
 
 const handleInstall = async (version: string) => {
-  installingVersion.value = version
-  errorMessage.value = ''
+  installingVersion.value = version;
+  errorMessage.value = '';
   try {
-    const result = await execNvm(`install ${version}`)
-    await refreshInstalled()
+    const result = await execNvm(`install ${version}`);
+    await refreshInstalled();
     if (!installedVersions.value.includes(version)) {
-      const message = (result.stderr || result.stdout || '').trim()
-      setError(message || '安装后未检测到该版本。')
+      const message = (result.stderr || result.stdout || '').trim();
+      setError(message || '安装后未检测到该版本。');
     } else {
-      setInfo(`已安装 ${version}`)
+      setInfo(`已安装 ${version}`);
     }
   } catch (error: any) {
-    setError(error.message || '安装失败。')
+    setError(error.message || '安装失败。');
   } finally {
-    installingVersion.value = ''
+    installingVersion.value = '';
   }
-}
+};
 
 const handleCustomInstall = async () => {
-  const version = customVersion.value.trim()
+  const version = customVersion.value.trim();
   if (!version) {
-    setError('请输入要安装的版本号。')
-    return
+    setError('请输入要安装的版本号。');
+    return;
   }
-  customVersion.value = ''
-  await handleInstall(version)
-}
+  customVersion.value = '';
+  await handleInstall(version);
+};
 
 const handleUninstall = async (version: string) => {
-  uninstallingVersion.value = version
-  errorMessage.value = ''
+  uninstallingVersion.value = version;
+  errorMessage.value = '';
   try {
-    const result = await execNvm(`uninstall ${version}`)
-    await refreshInstalled()
+    const result = await execNvm(`uninstall ${version}`);
+    await refreshInstalled();
     if (installedVersions.value.includes(version)) {
-      const message = (result.stderr || result.stdout || '').trim()
-      setError(message || '卸载后仍检测到该版本。')
+      const message = (result.stderr || result.stdout || '').trim();
+      setError(message || '卸载后仍检测到该版本。');
     } else {
-      setInfo(`已卸载 ${version}`)
+      setInfo(`已卸载 ${version}`);
     }
   } catch (error: any) {
-    setError(error.message || '卸载失败。')
+    setError(error.message || '卸载失败。');
   } finally {
-    uninstallingVersion.value = ''
+    uninstallingVersion.value = '';
   }
-}
+};
 
 const handleUse = async (version: string) => {
-  switchingVersion.value = version
-  errorMessage.value = ''
+  switchingVersion.value = version;
+  errorMessage.value = '';
   try {
-    const result = await execNvm(`use ${version}`)
-    await refreshCurrentNode()
-    const message = (result.stderr || result.stdout || '').trim()
+    const result = await execNvm(`use ${version}`);
+    await refreshCurrentNode();
+    const message = (result.stderr || result.stdout || '').trim();
     if (message) {
-      setInfo(message)
+      setInfo(message);
     } else {
-      setInfo(`已切换到 ${version}`)
+      setInfo(`已切换到 ${version}`);
     }
   } catch (error: any) {
-    setError(error.message || '切换版本失败。')
+    setError(error.message || '切换版本失败。');
   } finally {
-    switchingVersion.value = ''
+    switchingVersion.value = '';
   }
-}
+};
 
 const openDownload = () => {
   if ((window as any).utools?.shellOpenExternal) {
-    ;(window as any).utools.shellOpenExternal('https://github.com/coreybutler/nvm-windows/releases')
+    (window as any).utools.shellOpenExternal(
+      'https://github.com/coreybutler/nvm-windows/releases',
+    );
   }
-}
+};
+
+const openPreviousReleases = () => {
+  if ((window as any).utools?.shellOpenExternal) {
+    (window as any).utools.shellOpenExternal(
+      'https://nodejs.org/zh-cn/about/previous-releases',
+    );
+  }
+};
 
 onMounted(() => {
-  refreshAll()
-})
+  checkNvm().then(() => {
+    if (!nvmInstalled.value) return;
+    refreshInstalled();
+    refreshCurrentNode();
+  });
+});
 </script>
 
 <template>
   <div class="main">
+    <transition name="global-loading">
+      <div v-if="loadingAll" class="global-loading" aria-live="polite">
+        <div class="loading-card">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>正在刷新数据…</span>
+        </div>
+      </div>
+    </transition>
     <header class="topbar">
       <div class="current-node">
         <!-- <p class="eyebrow">当前 Node 版本</p> -->
-        <h1>{{ currentNodeNumber ? `v${currentNodeNumber}` : currentNodeVersion }}</h1>
+        <h1>
+          {{ currentNodeNumber ? `v${currentNodeNumber}` : currentNodeVersion }}
+        </h1>
       </div>
       <nav class="menu" aria-label="视图切换">
         <button
@@ -303,22 +345,36 @@ onMounted(() => {
         </button>
       </nav>
       <div class="actions">
-        <button class="ghost" :disabled="loadingAvailable || loadingInstalled" @click="refreshAll">
+        <button
+          class="ghost"
+          :disabled="loadingAvailable || loadingInstalled"
+          @click="refreshAll"
+        >
           <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
+            <svg
+              viewBox="0 0 1024 1024"
+            >
               <path
-                d="M4.5 12a7.5 7.5 0 0 1 12.6-5.4L19 4v6h-6l2.2-2.2A5.5 5.5 0 1 0 17.5 12h2A7.5 7.5 0 0 1 4.5 12Z"
-              />
+                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                p-id="8853"
+              ></path>
             </svg>
           </span>
           刷新
         </button>
         <button class="ghost" @click="drawerOpen = true" aria-label="打开设置">
           <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
+            <svg
+              viewBox="0 0 1024 1024"
+            >
               <path
-                d="M12 8.9a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm7.4 2.6-.9-.2a6.3 6.3 0 0 0-.7-1.6l.5-.8a.7.7 0 0 0-.1-.9l-1.2-1.2a.7.7 0 0 0-.9-.1l-.8.5a6.1 6.1 0 0 0-1.6-.7l-.2-.9a.7.7 0 0 0-.7-.5h-1.7a.7.7 0 0 0-.7.5l-.2.9a6.1 6.1 0 0 0-1.6.7l-.8-.5a.7.7 0 0 0-.9.1L5 7.9a.7.7 0 0 0-.1.9l.5.8a6.3 6.3 0 0 0-.7 1.6l-.9.2a.7.7 0 0 0-.5.7v1.7c0 .3.2.6.5.7l.9.2c.1.6.3 1.1.7 1.6l-.5.8a.7.7 0 0 0 .1.9l1.2 1.2c.3.3.6.3.9.1l.8-.5c.5.3 1 .6 1.6.7l.2.9c.1.3.4.5.7.5h1.7c.3 0 .6-.2.7-.5l.2-.9c.6-.1 1.1-.3 1.6-.7l.8.5c.3.2.6.2.9-.1l1.2-1.2c.3-.3.3-.6.1-.9l-.5-.8c.3-.5.6-1 .7-1.6l.9-.2c.3-.1.5-.4.5-.7v-1.7a.7.7 0 0 0-.5-.7Z"
-              />
+                d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56c10.1-8.6 13.8-22.6 9.3-35.2l-0.9-2.6c-18.1-50.5-44.9-96.9-79.7-137.9l-1.8-2.1c-8.6-10.1-22.5-13.9-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85c-2.4-13.1-12.7-23.3-25.8-25.7l-2.7-0.5c-52.1-9.4-106.9-9.4-159 0l-2.7 0.5c-13.1 2.4-23.4 12.6-25.8 25.7l-15.8 85.4c-35.9 13.6-69.2 32.9-99 57.4l-81.9-29.1c-12.5-4.4-26.5-0.7-35.1 9.5l-1.8 2.1c-34.8 41.1-61.6 87.5-79.7 137.9l-0.9 2.6c-4.5 12.5-0.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5c-10.1 8.6-13.8 22.6-9.3 35.2l0.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1c8.6 10.1 22.5 13.9 35.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4c2.4 13.1 12.7 23.3 25.8 25.7l2.7 0.5c26.1 4.7 52.8 7.1 79.5 7.1 26.7 0 53.5-2.4 79.5-7.1l2.7-0.5c13.1-2.4 23.4-12.6 25.8-25.7l15.7-85c36.2-13.6 69.7-32.9 99.7-57.6l81.3 28.9c12.5 4.4 26.5 0.7 35.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l0.9-2.6c4.5-12.3 0.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9c-11.3 26.1-25.6 50.7-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97c-28.1 3.2-56.8 3.2-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9z"
+                p-id="8639"
+              ></path>
+              <path
+                d="M512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176z m79.2 255.2C570 602.3 541.9 614 512 614c-29.9 0-58-11.7-79.2-32.8C411.7 560 400 531.9 400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8C612.3 444 624 472.1 624 502c0 29.9-11.7 58-32.8 79.2z"
+                p-id="8640"
+              ></path>
             </svg>
           </span>
           设置
@@ -338,8 +394,13 @@ onMounted(() => {
       <section class="card" v-if="viewMode === 'available'">
         <div class="card-header">
           <div>
-            <p class="card-title">可用版本</p>
-            <p class="card-subtitle">来自 `nvm list available`</p>
+            <p class="card-title">
+              可用版本
+              <span class="more-version" @click="openPreviousReleases" title="跳转 https://nodejs.org/zh-cn/about/previous-releases">
+                更多版本
+              </span>
+            </p>
+            <p class="card-subtitle">来自「nvm list available」</p>
           </div>
           <span class="status" v-if="loadingAvailable">加载中...</span>
         </div>
@@ -351,7 +412,7 @@ onMounted(() => {
           />
           <button
             class="primary small"
-            style="height: 100%;"
+            style="height: 100%"
             :disabled="!customVersion.trim() || installingVersion !== ''"
             @click="handleCustomInstall"
           >
@@ -360,30 +421,32 @@ onMounted(() => {
         </div>
         <div class="table-scroll">
           <div class="table">
-          <div class="table-row header triple">
-            <span>版本</span>
-            <span>标记</span>
-            <span>操作</span>
-          </div>
-          <div v-if="availableVersions.length === 0" class="table-row empty">
-            <span>暂无可用版本。</span>
-          </div>
-          <div
-            v-for="item in availableVersions"
-            :key="`available-${item.version}`"
-            class="table-row triple"
-          >
-            <span class="mono">{{ item.version }}</span>
-            <span class="tag" :class="{ muted: !item.label }">{{ item.label || '--' }}</span>
-            <button
-              class="primary small"
-              :disabled="installingVersion === item.version"
-              @click="handleInstall(item.version)"
+            <div class="table-row header triple">
+              <span>版本</span>
+              <span>标记</span>
+              <span>操作</span>
+            </div>
+            <div v-if="availableVersions.length === 0" class="table-row empty">
+              <span @click="refreshAll">暂无可用版本(点此刷新)</span>
+            </div>
+            <div
+              v-for="item in availableVersions"
+              :key="`available-${item.version}`"
+              class="table-row triple"
             >
-              <span v-if="installingVersion === item.version">安装中...</span>
-              <span v-else>安装</span>
-            </button>
-          </div>
+              <span class="mono">{{ item.version }}</span>
+              <span class="tag" :class="{ muted: !item.label }">{{
+                item.label || '--'
+              }}</span>
+              <button
+                class="primary small"
+                :disabled="installingVersion === item.version"
+                @click="handleInstall(item.version)"
+              >
+                <span v-if="installingVersion === item.version">安装中...</span>
+                <span v-else>安装</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -392,57 +455,66 @@ onMounted(() => {
         <div class="card-header">
           <div>
             <p class="card-title">已安装版本</p>
-            <p class="card-subtitle">来自 `nvm list`</p>
+            <p class="card-subtitle">来自「nvm list」</p>
           </div>
           <span class="status" v-if="loadingInstalled">加载中...</span>
         </div>
         <div class="table-scroll">
           <div class="table">
-          <div class="table-row header quad">
-            <span>版本</span>
-            <span>状态</span>
-            <span>切换</span>
-            <span>操作</span>
-          </div>
-          <div v-if="installedVersions.length === 0" class="table-row empty">
-            <span>暂无已安装版本。</span>
-          </div>
-          <div
-            v-for="version in installedVersions"
-            :key="`installed-${version}`"
-            class="table-row quad"
-            :class="{ current: version === currentNodeNumber }"
-          >
-            <span class="mono">{{ version }}</span>
-            <span class="pill" :class="{ 'pill-current': version === currentNodeNumber }">
-              {{ version === currentNodeNumber ? '当前' : '已安装' }}
-            </span>
-            <button
-              class="ghost small"
-              :disabled="switchingVersion === version || version === currentNodeNumber"
-              @click="handleUse(version)"
+            <div class="table-row header quad">
+              <span>版本</span>
+              <span>状态</span>
+              <span>切换</span>
+              <span>操作</span>
+            </div>
+            <div v-if="installedVersions.length === 0" class="table-row empty">
+              <span>暂无已安装版本。</span>
+            </div>
+            <div
+              v-for="version in installedVersions"
+              :key="`installed-${version}`"
+              class="table-row quad"
+              :class="{ current: version === currentNodeNumber }"
             >
-              <span v-if="switchingVersion === version">切换中...</span>
-              <span v-else>使用</span>
-            </button>
-            <button
-              class="ghost small danger"
-              :disabled="uninstallingVersion === version"
-              @click="handleUninstall(version)"
-            >
-              <span v-if="uninstallingVersion === version">卸载中...</span>
-              <span v-else>卸载</span>
-            </button>
-          </div>
+              <span class="mono">{{ version }}</span>
+              <span
+                class="pill"
+                :class="{ 'pill-current': version === currentNodeNumber }"
+              >
+                {{ version === currentNodeNumber ? '当前' : '已安装' }}
+              </span>
+              <button
+                class="ghost small"
+                :disabled="
+                  switchingVersion === version || version === currentNodeNumber
+                "
+                @click="handleUse(version)"
+              >
+                <span v-if="switchingVersion === version">切换中...</span>
+                <span v-else>使用</span>
+              </button>
+              <button
+                class="ghost small danger"
+                :disabled="uninstallingVersion === version"
+                @click="handleUninstall(version)"
+              >
+                <span v-if="uninstallingVersion === version">卸载中...</span>
+                <span v-else>卸载</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
     </div>
+    <div class="command-tip" aria-live="polite">
+      <span class="label">当前命令</span>
+      <span class="mono">{{ commandTip }}</span>
+    </div>
 
-    <section v-if="!currentHasList && nvmInstalled" class="empty-state">
+    <!-- <section v-if="!currentHasList && nvmInstalled" class="empty-state">
       <h3>暂无数据</h3>
       <p>{{ currentEmptyText }}</p>
-    </section>
+    </section> -->
 
     <transition name="drawer-mask">
       <div
@@ -469,8 +541,30 @@ onMounted(() => {
               </div>
               <div class="setting-row">
                 <span>快捷操作</span>
-                <button class="primary small" @click="refreshAll">重新检测</button>
+                <button class="primary small" @click="refreshAll">
+                  重新检测
+                </button>
               </div>
+              <div class="setting-row">
+                <span>快速使用</span>
+                <button
+                  class="ghost small inline"
+                  @click="showInstructions = !showInstructions"
+                  :aria-expanded="showInstructions"
+                >
+                  <span v-if="showInstructions">收起</span>
+                  <span v-else>展开</span>
+                </button>
+              </div>
+              <transition name="collapse">
+                <div v-show="showInstructions" class="collapse-body">
+                  <ol style="margin:0 0 0 18px;padding:0">
+                    <li>若未检测到 NVM，请先安装 NVM for Windows。</li>
+                    <li>在“可用版本”中选择版本并点击“安装”。</li>
+                    <li>在“已安装”中切换或卸载已安装的版本。</li>
+                  </ol>
+                </div>
+              </transition>
             </div>
           </aside>
         </transition>
@@ -478,7 +572,12 @@ onMounted(() => {
     </transition>
 
     <div class="toast-stack">
-      <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="toast"
+        :class="toast.type"
+      >
         <span>{{ toast.message }}</span>
       </div>
     </div>
@@ -488,7 +587,7 @@ onMounted(() => {
 <style scoped>
 .main {
   padding: 15px;
-  font-family: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   color: #1f1f1f;
   background: #f5f5f5;
   min-height: calc(100vh - 30px);
@@ -531,15 +630,15 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px;
-  border-radius: 8px;
+  padding: 2px;
+  border-radius: 5px;
   background: #ffffff;
   border: 1px solid #f0f0f0;
 }
 
 .menu-item {
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: 5px;
   border: none;
   background: transparent;
   color: #595959;
@@ -547,9 +646,9 @@ h1 {
 }
 
 .menu-item.active {
-  background: #e6f4ff;
-  color: #1677ff;
+  background: #F2F3F5;
   box-shadow: none;
+  font-weight: bold;
 }
 
 .ghost {
@@ -574,8 +673,8 @@ h1 {
 }
 
 .icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: inline-flex;
 }
 
@@ -601,6 +700,11 @@ h1 {
   background: #4096ff;
 }
 
+.primary:disabled {
+  background: rgba(0, 0, 0, 0.04);
+  color: #595959;
+}
+
 .primary.small {
   padding: 6px 12px;
   font-size: 12px;
@@ -609,6 +713,12 @@ h1 {
 .ghost.small {
   padding: 6px 12px;
   font-size: 12px;
+}
+
+.ghost.small.inline {
+  margin-left: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
 .ghost.danger {
@@ -656,12 +766,12 @@ h1 {
 .card {
   background: #fff;
   border: 1px solid #f0f0f0;
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 16px 18px 12px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 180px);
 }
 
 .card-header {
@@ -687,7 +797,7 @@ h1 {
   height: 32px;
   padding: 0 10px;
   border-radius: 5px;
-  border: 1px solid #d9d9d9;
+  border: 1.5px solid #d9d9d9;
   outline: none;
   font-size: 13px;
   background: #fff;
@@ -700,10 +810,28 @@ h1 {
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
 }
 
+.input:hover {
+  border-color: #1677ff;
+}
+
 .card-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.more-version {
+  display: inline-flex;
+  font-size: 10px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.more-version:hover {
+  opacity: 0.8;
 }
 
 .card-subtitle {
@@ -750,7 +878,10 @@ h1 {
 }
 
 .table-row.quad {
-  grid-template-columns: 1fr minmax(70px, 110px) minmax(80px, 120px) minmax(80px, 120px);
+  grid-template-columns: 1fr minmax(70px, 110px) minmax(80px, 120px) minmax(
+      80px,
+      120px
+    );
   gap: 10px;
 }
 
@@ -784,17 +915,21 @@ h1 {
   grid-template-columns: 1fr;
   color: #8c8c8c;
   background: #fafafa;
+  text-align: center;
+  cursor: pointer;
 }
 
 .mono {
-  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family:
+    'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+    monospace;
 }
 
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 100px;
+  padding: 4px 8px;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 600;
   background: #e6f4ff;
@@ -808,8 +943,8 @@ h1 {
 
 .pill {
   display: inline-flex;
-  padding: 2px 10px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: 5px;
   font-size: 12px;
   background: #e6f4ff;
   color: #1677ff;
@@ -839,6 +974,35 @@ h1 {
   text-align: center;
 }
 
+.command-tip {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px dashed #d0d7de;
+  color: #595959;
+  font-size: 12px;
+}
+
+.command-tip .label {
+  font-size: 10px;
+  color: #8c8c8c;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.command-tip .mono {
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: #f5f5f5;
+  color: #262626;
+  font-size: 12px;
+}
+
 .drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -860,9 +1024,63 @@ h1 {
   transform-origin: right center;
 }
 
+.global-loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  backdrop-filter: blur(2px);
+}
+
+.loading-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  color: #1f1f1f;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #d9d9d9;
+  border-top-color: #1677ff;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.global-loading-enter-active,
+.global-loading-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.global-loading-enter-from,
+.global-loading-leave-to {
+  opacity: 0;
+}
+
+.global-loading-enter-to,
+.global-loading-leave-from {
+  opacity: 1;
+}
+
 .drawer-mask-enter-active,
 .drawer-mask-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .drawer-mask-enter-from,
@@ -870,7 +1088,6 @@ h1 {
   opacity: 0;
 }
 
-.drawer-mask-enter-to,
 .drawer-mask-leave-from {
   opacity: 1;
 }
@@ -914,6 +1131,32 @@ h1 {
   padding: 10px 12px;
   background: #f7f7f7;
   border-radius: 8px;
+}
+
+.collapse-body {
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-top: 0px;
+  color: #444;
+  font-size: 13px;
+}
+
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: all 0.18s ease;
+}
+.collapse-enter-from,
+.collapse-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.collapse-enter-to,
+.collapse-leave-from {
+  max-height: 400px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (max-width: 680px) {
