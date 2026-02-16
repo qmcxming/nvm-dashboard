@@ -13,6 +13,17 @@
         "nvm",
         "nvm-ui"
       ]
+    },
+    {
+      "code": "nvm use",
+      "explain": "切换node版本。",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "切换",
+          "match": "/^切换\\s*(.+)?/"
+        }
+      ]
     }
   ]
 }

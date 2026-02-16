@@ -18,3 +18,14 @@ npm run dev
 # 打包项目
 npm run build
 ```
+
+### 3、功能介绍
+- 获取当前node版本 (nvm current)
+- 获取所有可用node版本 (nvm list available)
+- 获取所有已安装的node版本 (nvm list)
+- 切换node版本 (nvm use)
+- 删除node版本 (nvm uninstall x.x.x)
+- 安装node版本 (nvm install x.x.x)
+- 获取node版本信息 (nvm nodeinfo)
+- 获取nvm 版本信息 (nvm -v)
+- node版本快速切换：直接在uTools中输入 切换18或x.x.x
