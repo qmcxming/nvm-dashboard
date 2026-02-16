@@ -24,6 +24,17 @@
           "match": "/^切换\\s*(.+)?/"
         }
       ]
+    },
+    {
+      "code": "mirror use",
+      "explain": "切换npm镜像源。",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "换源",
+          "match": "/^换源\\s*(.+)?/"
+        }
+      ]
     }
   ]
 }

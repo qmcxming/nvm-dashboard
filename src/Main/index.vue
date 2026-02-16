@@ -69,12 +69,9 @@ const currentRegistryLabel = computed(() => {
 const normalizeRegistry = (value: string) => value.trim().replace(/\/+$/g, '/');
 
 const pushCommand = (command: string) => {
-  // 使用的命令，推送到commandTip中
-  // 最多存储5条，超出5条，移除最旧的一条
-  if (commandTip.value.length >= 5) {
-    commandTip.value.pop();
-  }
-  commandTip.value.unshift(command);
+  // 去重并限制最大长度为 5
+  const filterCommand = commandTip.value.filter(item => item !== command);
+  commandTip.value = [command, ...filterCommand].slice(0, 5);
 }
 
 const execNvm = (args: string) => {
@@ -267,7 +264,7 @@ const handleSetRegistry = async (option: RegistryOption) => {
   try {
     await execCommand(`npm config set registry ${option.registry}`);
     await refreshRegistry();
-    setInfo(`当前镜像源为 ${option.label}`);
+    setInfo(`镜像源「${option.label}」切换成功`);
   } catch (error: any) {
     setError(error.message || '设置失败');
   } finally {

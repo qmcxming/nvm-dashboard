@@ -10,25 +10,70 @@ onMounted(() => {
     route.value = action.code
     enterAction.value = action
     if (action.code === 'nvm use') {
-      console.log('执行切换');
       handlerQuiackUse(action.payload)
+    }
+    if (action.code === 'mirror use') {
+      handlerMirrorUse(action.payload)
     }
   })
   window.utools.onPluginOut((isKill) => {
     route.value = ''
   })
 })
+
+const hideMainWindow = () => {
+  window.utools.outPlugin()
+  window.utools.hideMainWindow()
+}
   
 const handlerQuiackUse = (payload) => {
-  window.utools.outPlugin()
-  window.utools.hideMainWindow();
+  hideMainWindow();
   // 提取版本号
   const match = payload?.match(/切换\s*(.*)/);
   const version = match ? match[1].trim() : '';
+  if (!version) {
+    window.utools.showNotification('请输入要切换的版本号');
+    return;
+  }
   console.log(version);
   window.services.execNvm(`use ${version}`).then(res => {
     console.log(res);
     window.utools.showNotification(res.stdout);
+  }).catch(error => {
+    window.utools.showNotification(error);
+  })
+}
+
+const registryOptions = [
+  { key: 'npm', label: 'npm', registry: 'https://registry.npmjs.org/' },
+  { key: 'yarn', label: 'yarn', registry: 'https://registry.yarnpkg.com/' },
+  { key: 'taobao', label: 'taobao', registry: 'https://registry.npmmirror.com/' },
+  { key: 'tencent', label: 'tencent', registry: 'https://mirrors.tencent.com/npm/' },
+  { key: 'cnpm', label: 'cnpm', registry: 'https://r.cnpmjs.org/' },
+];
+
+const getRegistry = (mirror) => {
+  return registryOptions.find((item) => item.key === mirror)?.registry || '';
+}
+
+const handlerMirrorUse = (payload) => {
+  hideMainWindow();
+  // 提取参数
+  const match = payload?.match(/换源\s*(.*)/);
+  const mirror = match ? match[1].trim() : '';
+  console.log(mirror);
+  
+  if (!mirror) {
+    window.utools.showNotification('请输入要切换的镜像源');
+    return;
+  }
+  const registry = getRegistry(mirror);
+  if (!registry) {
+    window.utools.showNotification('镜像源不存在');
+    return;
+  }
+  window.services.execCommand(`npm config set registry ${registry}`).then(res => {
+    window.utools.showNotification(`镜像源「${mirror}」切换成功`);
   }).catch(error => {
     window.utools.showNotification(error);
   })
