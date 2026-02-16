@@ -1,7 +1,6 @@
 <script lang="js" setup>
 import { onMounted, ref } from 'vue';
 import Main from './Main/index.vue'
-import { execNvm } from './utils/common';
 
 const route = ref('')
 const enterAction = ref({})

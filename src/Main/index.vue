@@ -18,6 +18,12 @@ type CommandResult = {
   stderr: string;
 };
 
+type RegistryOption = {
+  key: string;
+  label: string;
+  registry: string;
+};
+
 const availableVersions = ref<AvailableVersion[]>([]);
 const installedVersions = ref<string[]>([]);
 const nvmInstalled = ref<boolean>(false);
@@ -37,22 +43,30 @@ const switchingVersion = ref<string>('');
 const errorMessage = ref<string>('');
 const drawerOpen = ref<boolean>(false);
 const showInstructions = ref<boolean>(false);
-const viewMode = ref<'available' | 'installed'>('installed');
+const viewMode = ref<'available' | 'installed' | 'registry'>('installed');
 const toasts = ref<{ id: number; message: string; type: 'error' | 'info' }[]>(
   [],
 );
 let toastSeed = 0;
 const customVersion = ref<string>('');
 const commandTip = ref<string[]>([]);
+const currentRegistry = ref<string>('--');
+const loadingRegistry = ref<boolean>(false);
+const settingRegistry = ref<string>('');
 
-const currentHasList = computed(() => {
-  if (viewMode.value === 'available') return availableVersions.value.length > 0;
-  return installedVersions.value.length > 0;
-});
-const currentEmptyText = computed(() => {
-  if (viewMode.value === 'available') return '暂无可用版本。';
-  return '暂无已安装版本。';
-});
+const registryOptions: RegistryOption[] = [
+  { key: 'npm', label: 'npm', registry: 'https://registry.npmjs.org/' },
+  { key: 'yarn', label: 'yarn', registry: 'https://registry.yarnpkg.com/' },
+  { key: 'taobao', label: 'taobao', registry: 'https://registry.npmmirror.com/' },
+  { key: 'tencent', label: 'tencent', registry: 'https://mirrors.tencent.com/npm/' },
+  { key: 'cnpm', label: 'cnpm', registry: 'https://r.cnpmjs.org/' },
+];
+
+const currentRegistryLabel = computed(() => {
+  return registryOptions.find(item => item.registry === currentRegistry.value)?.label;
+})
+
+const normalizeRegistry = (value: string) => value.trim().replace(/\/+$/g, '/');
 
 const pushCommand = (command: string) => {
   // 使用的命令，推送到commandTip中
@@ -70,6 +84,12 @@ const execNvm = (args: string) => {
   }
   pushCommand(`nvm ${args}`)
   return services.execNvm(args) as Promise<CommandResult>;
+};
+
+const execCommand = (command: string) => {
+  const services = (window as any).services;
+  pushCommand(command);
+  return services.execCommand(command) as Promise<CommandResult>;
 };
 
 const pushToast = (message: string, type: 'error' | 'info' = 'info') => {
@@ -229,6 +249,32 @@ const refreshAll = async () => {
   }
 };
 
+const refreshRegistry = async () => {
+  loadingRegistry.value = true;
+  try {
+    const result = await execCommand('npm config get registry');
+    currentRegistry.value = result.stdout.trim() || '--';
+  } catch (error: any) {
+    currentRegistry.value = '--';
+    setError(error.message || '获取失败，请稍后重试');
+  } finally {
+    loadingRegistry.value = false;
+  }
+};
+
+const handleSetRegistry = async (option: RegistryOption) => {
+  settingRegistry.value = option.registry;
+  try {
+    await execCommand(`npm config set registry ${option.registry}`);
+    await refreshRegistry();
+    setInfo(`当前镜像源为 ${option.label}`);
+  } catch (error: any) {
+    setError(error.message || '设置失败');
+  } finally {
+    settingRegistry.value = '';
+  }
+};
+
 const handleInstall = async (version: string) => {
   installingVersion.value = version;
   errorMessage.value = '';
@@ -320,6 +366,7 @@ onMounted(() => {
     if (!nvmInstalled.value) return;
     refreshInstalled();
     refreshCurrentNode();
+    refreshRegistry();
   }).finally(() => {
     loadingAll.value = false;
   });
@@ -357,6 +404,13 @@ onMounted(() => {
           @click="viewMode = 'available'"
         >
           可用版本
+        </button>
+        <button
+          class="menu-item"
+          :class="{ active: viewMode === 'registry' }"
+          @click="viewMode = 'registry'"
+        >
+          镜像源
         </button>
       </nav>
       <div class="actions">
@@ -406,7 +460,7 @@ onMounted(() => {
       <button class="primary" @click="openDownload">下载 NVM</button>
     </section>
 
-    <div class="grid" v-if="nvmInstalled">
+    <div class="grid" v-if="nvmInstalled || viewMode === 'registry'">
       <section class="card" v-if="viewMode === 'available'">
         <div class="card-header">
           <div>
@@ -460,6 +514,7 @@ onMounted(() => {
               v-for="item in availableVersions"
               :key="`available-${item.version}`"
               class="table-row triple"
+              :class="{ current: item.version === currentNodeNumber }"
             >
               <span class="mono">{{ item.version }}</span>
               <span class="tag" :class="{ muted: !item.label }">{{
@@ -542,10 +597,62 @@ onMounted(() => {
           </div>
         </div>
       </section>
+
+      <section class="card" v-if="viewMode === 'registry'">
+        <div class="card-header">
+          <div>
+            <p class="card-title">npm 镜像源</p>
+            <p class="card-subtitle">当前「{{ currentRegistryLabel }}」</p>
+          </div>
+          <span
+            class="icon refresh-icon"
+            aria-hidden="true"
+            @click="refreshRegistry"
+            title="刷新"
+          >
+            <svg
+              viewBox="0 0 1024 1024"
+            >
+              <path
+                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                p-id="8853"
+              ></path>
+            </svg>
+          </span>
+        </div>
+        <div class="table-scroll">
+          <div class="table">
+            <div class="table-row header registry-header">
+              <span>名称</span>
+              <span>地址</span>
+              <span>操作</span>
+            </div>
+            <div
+              v-for="item in registryOptions"
+              :key="item.key"
+              class="table-row registry-row"
+              :class="{ current: normalizeRegistry(item.registry) === normalizeRegistry(currentRegistry) }"
+            >
+              <span class="mono">{{ item.label }}</span>
+              <span class="registry">{{
+                item.registry || '--'
+              }}</span>
+              <button
+                class="primary small"
+                :disabled="settingRegistry === item.registry || normalizeRegistry(item.registry) === normalizeRegistry(currentRegistry)"
+                @click="handleSetRegistry(item)"
+              >
+                <span v-if="settingRegistry === item.registry">切换中...</span>
+                <span v-else>切换</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="command-tip" aria-live="polite">
       <span class="label">当前命令</span>
-      <span class="mono" v-for="(item, index) in commandTip" :key="index">{{ item }}</span>
+      <span class="mono" v-for="(item, index) in commandTip" :key="index" :title="item">{{ item }}</span>
       <span class="mono" v-if="commandTip.length === 0">等待执行命令</span>
     </div>
 
@@ -918,16 +1025,23 @@ h1 {
 }
 
 .table-row.triple {
-  grid-template-columns: 1fr minmax(80px, 120px) minmax(90px, 140px);
+  grid-template-columns: 1fr minmax(80px, 120px) auto;
   gap: 10px;
 }
 
 .table-row.quad {
-  grid-template-columns: 1fr minmax(70px, 110px) minmax(80px, 120px) minmax(
-      80px,
-      120px
-    );
+  grid-template-columns: 1fr minmax(70px, 110px) minmax(80px, 120px) auto;
   gap: 10px;
+}
+
+.registry-header, .registry-row {
+  grid-template-columns: minmax(80px, 120px) 1fr auto;
+  gap: 10px;
+}
+
+.registry-row .registry {
+  color: #8c8c8c;
+  font-size: 12px;
 }
 
 .table-row.triple > *:nth-child(2),
@@ -953,7 +1067,7 @@ h1 {
 }
 
 .table-row.header span {
-  padding: 0 9px;
+  padding: 0 12px;
 }
 
 .table-row.empty {
@@ -1041,11 +1155,15 @@ h1 {
 }
 
 .command-tip .mono {
+  max-width: 100px;
   padding: 4px 10px;
   border-radius: 5px;
   background: #f5f5f5;
   color: #262626;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .drawer-backdrop {
@@ -1197,6 +1315,12 @@ h1 {
   padding: 10px 12px;
   background: #f7f7f7;
   border-radius: 8px;
+}
+
+.mirror-url {
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #8c8c8c;
 }
 
 .collapse-body {
