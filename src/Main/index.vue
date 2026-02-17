@@ -8,16 +8,25 @@ defineProps({
   },
 });
 
+/**
+ * 已安装的版本
+ */
 type AvailableVersion = {
   version: string;
   label: string;
 };
 
+/**
+ * 命令执行结果
+ */
 type CommandResult = {
   stdout: string;
   stderr: string;
 };
 
+/**
+ * 镜像源
+ */
 type RegistryOption = {
   key: string;
   label: string;
@@ -652,11 +661,6 @@ onMounted(() => {
       <span class="mono" v-for="(item, index) in commandTip" :key="index" :title="item">{{ item }}</span>
       <span class="mono" v-if="commandTip.length === 0">等待执行命令</span>
     </div>
-
-    <!-- <section v-if="!currentHasList && nvmInstalled" class="empty-state">
-      <h3>暂无数据</h3>
-      <p>{{ currentEmptyText }}</p>
-    </section> -->
 
     <transition name="drawer-mask">
       <div

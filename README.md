@@ -20,12 +20,34 @@ npm run build
 ```
 
 ### 3、功能介绍
-- 获取当前node版本 (nvm current)
-- 获取所有可用node版本 (nvm list available)
-- 获取所有已安装的node版本 (nvm list)
-- 切换node版本 (nvm use)
-- 删除node版本 (nvm uninstall x.x.x)
-- 安装node版本 (nvm install x.x.x)
-- 获取node版本信息 (nvm nodeinfo)
-- 获取nvm 版本信息 (nvm -v)
-- node版本快速切换：直接在uTools中输入 切换18或x.x.x
+
+1. **Node版本管理**
+   - 查看当前Node版本
+   - 查看可用Node版本
+   - 查看已安装Node版本
+   - 切换Node版本
+   - 删除指定Node版本
+   - 安装指定Node版本
+
+2. **快速切换功能**
+   - **Node版本快速切换**：在uTools输入“切换18”或“切换x.x.x”，或“node 18”或“node x.x.x”
+   - **npm源快速切换**：在uTools输入“换源taobao”或“npm taobao”
+
+3. **npm源管理**
+   - 支持查看、切换npm、yarn、taobao、tencent、cnpm等源。
+
+![QQ_1771293658626.png](https://s3.bmp.ovh/2026/02/17/yrWkLTQb.png)
+
+### 4、所用指令
+
+```sh
+nvm current
+nvm list available
+nvm list
+nvm use
+nvm uninstall x.x.x
+nvm install x.x.x
+nvm -v
+npm config get registry
+npm config set registry=https://registry.npmjs.org/
+```
