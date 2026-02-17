@@ -28,8 +28,8 @@ const hideMainWindow = () => {
   
 const handlerQuiackUse = (payload) => {
   hideMainWindow();
-  // 提取版本号
-  const match = payload?.match(/切换\s*(.*)/);
+  // 提取版本号 第一种类型 切换18 node18
+  let match = payload?.match(/(?:切换|node)\s*(.*)/);
   const version = match ? match[1].trim() : '';
   if (!version) {
     window.utools.showNotification('请输入要切换的版本号');
@@ -58,8 +58,8 @@ const getRegistry = (mirror) => {
 
 const handlerMirrorUse = (payload) => {
   hideMainWindow();
-  // 提取参数
-  const match = payload?.match(/换源\s*(.*)/);
+  // 提取参数 换源taobao npmtaobao
+  const match = payload?.match(/(?:换源|npm)\s*(.*)/);
   const mirror = match ? match[1].trim() : '';
   console.log(mirror);
   

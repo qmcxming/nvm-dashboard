@@ -22,6 +22,11 @@
           "type": "regex",
           "label": "切换",
           "match": "/^切换\\s*(.+)?/"
+        },
+        {
+          "type": "regex",
+          "label": "node",
+          "match": "/^node\\s*(.+)?/"
         }
       ]
     },
@@ -33,6 +38,11 @@
           "type": "regex",
           "label": "换源",
           "match": "/^换源\\s*(.+)?/"
+        },
+        {
+          "type": "regex",
+          "label": "npm",
+          "match": "/^npm\\s*(.+)?/"
         }
       ]
     }
