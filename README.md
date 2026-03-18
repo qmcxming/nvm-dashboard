@@ -50,4 +50,6 @@ nvm install x.x.x
 nvm -v
 npm config get registry
 npm config set registry=https://registry.npmjs.org/
+nvm node_mirror https://npmmirror.com/mirrors/node/
+nvm npm_mirror https://npmmirror.com/mirrors/npm/
 ```

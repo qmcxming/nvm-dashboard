@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
+import Tooltip from '../components/Tooltip.vue';
 
 defineProps({
   enterAction: {
@@ -350,6 +351,16 @@ const handleUse = async (version: string) => {
   }
 };
 
+const setNvmMirrors = async () => {
+  try {
+    await execNvm('node_mirror https://npmmirror.com/mirrors/node/');
+    await execNvm('npm_mirror https://npmmirror.com/mirrors/npm/');
+    setInfo('已成功配置 NVM 淘宝镜像。');
+  } catch (error: any) {
+    setError(error.message || '配置 NVM 镜像失败。');
+  }
+};
+
 const openDownload = () => {
   if ((window as any).utools?.shellOpenExternal) {
     (window as any).utools.shellOpenExternal(
@@ -390,13 +401,17 @@ onMounted(() => {
       </div>
     </transition>
     <header class="topbar">
-      <div class="current-node">
-        <!-- <p class="eyebrow">当前 Node 版本</p> -->
-        <h1>
-          {{ currentNodeNumber ? `v${currentNodeNumber}` : currentNodeVersion }}
-        </h1>
-      </div>
+      <Tooltip :content="currentNodeNumber ? `当前 Node 版本: v${currentNodeNumber}` : currentNodeVersion" position="right" style="display: block;">
+        <div class="current-node">
+          <!-- <p class="eyebrow">当前 Node 版本</p> -->
+          <div class="version-badge">
+            <span class="version-dot"></span>
+            <h1>{{ currentNodeNumber ? `v${currentNodeNumber}` : currentNodeVersion }}</h1>
+          </div>
+        </div>
+      </Tooltip>
       <nav class="menu" aria-label="视图切换">
+        <div class="menu-slider" :class="viewMode"></div>
         <button
           class="menu-item"
           :class="{ active: viewMode === 'installed' }"
@@ -420,24 +435,25 @@ onMounted(() => {
         </button>
       </nav>
       <div class="actions">
-        <button
-          class="ghost"
-          :disabled="loadingAvailable || loadingInstalled"
-          @click="refreshAll"
-          title="刷新全部"
-        >
-          <span class="icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 1024 1024"
-            >
-              <path
-                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                p-id="8853"
-              ></path>
-            </svg>
-          </span>
-          刷新
-        </button>
+        <Tooltip content="刷新全部" position="left">
+          <button
+            class="ghost"
+            :disabled="loadingAvailable || loadingInstalled"
+            @click="refreshAll"
+          >
+            <span class="icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 1024 1024"
+              >
+                <path
+                  d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                  p-id="8853"
+                ></path>
+              </svg>
+            </span>
+            刷新
+          </button>
+        </Tooltip>
         <button class="ghost" @click="drawerOpen = true" aria-label="打开设置">
           <span class="icon" aria-hidden="true">
             <svg
@@ -478,16 +494,18 @@ onMounted(() => {
             </p>
             <p class="card-subtitle">来自「nvm list available」</p>
           </div>
-          <span class="icon refresh-icon" aria-hidden="true" @click="refreshAvailable" title="刷新">
-            <svg
-              viewBox="0 0 1024 1024"
-            >
-              <path
-                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                p-id="8853"
-              ></path>
-            </svg>
-          </span>
+          <Tooltip content="刷新" position="left">
+            <span class="icon refresh-icon" aria-hidden="true" @click="refreshAvailable">
+              <svg
+                viewBox="0 0 1024 1024"
+              >
+                <path
+                  d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                  p-id="8853"
+                ></path>
+              </svg>
+            </span>
+          </Tooltip>
         </div>
         <div class="custom-install">
           <input
@@ -658,7 +676,9 @@ onMounted(() => {
     </div>
     <div class="command-tip" aria-live="polite">
       <span class="label">当前命令</span>
-      <span class="mono" v-for="(item, index) in commandTip" :key="index" :title="item">{{ item }}</span>
+      <Tooltip v-for="(item, index) in commandTip" :key="index" :content="item" position="top">
+        <span class="mono">{{ item }}</span>
+      </Tooltip>
       <span class="mono" v-if="commandTip.length === 0">等待执行命令</span>
     </div>
 
@@ -687,12 +707,23 @@ onMounted(() => {
               </div>
               <div class="setting-row">
                 <span>快捷操作</span>
-                <button class="primary small" @click="refreshAll">
-                  重新检测
-                </button>
+                <div style="display: flex; gap: 8px;">
+                  <Tooltip content="一键配置 NVM 镜像
+nvm node_mirror https://npmmirror.com/mirrors/node/
+nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
+                    <button class="ghost small" @click="setNvmMirrors">
+                      NVM 镜像
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="重新检测 NVM" position="left">
+                    <button class="primary small" @click="refreshAll">
+                      重新检测
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
               <div class="setting-row">
-                <span>快速使用</span>
+                <span>快速上手</span>
                 <button
                   class="ghost small inline"
                   @click="showInstructions = !showInstructions"
@@ -706,9 +737,9 @@ onMounted(() => {
                 <div v-show="showInstructions" class="collapse-body">
                   <ol style="margin:0 0 0 18px;padding:0">
                     <li>若未检测到 NVM，请先安装 NVM for Windows。</li>
-                    <li>在“可用版本”中选择版本并点击“安装”。</li>
-                    <li>在“已安装”中切换或卸载已安装的版本。</li>
-                    <li>您也可以自行安装指定版本，即输入版本号，然后点击安装指定版本按钮。</li>
+                    <li>在<b>“可用版本”</b>中选择版本并点击<b>“安装”</b>。</li>
+                    <li>在<b>“已安装”</b>中切换或卸载已安装的版本。</li>
+                    <li>您也可以自行安装指定版本，即输入版本号，然后点击<b>“安装”</b>按钮。</li>
                   </ol>
                 </div>
               </transition>
@@ -736,8 +767,15 @@ onMounted(() => {
   padding: 15px;
   font-family: 'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   color: #1f1f1f;
-  background: #f5f5f5;
+  background: #F8FAFC;
   min-height: calc(100vh - 30px);
+  /* 字体 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  
+  /* 开启更平滑的字体抗锯齿表现（非常有必要） */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
 }
 
 .topbar {
@@ -751,21 +789,57 @@ onMounted(() => {
 .current-node {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  user-select: none;
 }
 
 .eyebrow {
   margin: 0;
   color: #8c8c8c;
   font-size: 12px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
-h1 {
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 4px 12px;
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  border: 1px solid #bbf7d0;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.version-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.15);
+}
+
+.version-dot {
+  width: 8px;
+  height: 8px;
+  background: #16a34a;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.version-badge h1 {
   margin: 0;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
+  color: #15803d;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, Menlo, monospace;
+  letter-spacing: -0.5px;
 }
 
 .actions {
@@ -775,27 +849,50 @@ h1 {
 
 .menu {
   display: inline-flex;
+  position: relative;
   align-items: center;
-  gap: 6px;
-  padding: 2px;
-  border-radius: 5px;
-  background: #ffffff;
-  border: 1px solid #f0f0f0;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  z-index: 1;
 }
 
+.menu-slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: calc((100% - 8px) / 3);
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: -1;
+}
+
+.menu-slider.installed { transform: translateX(0); }
+.menu-slider.available { transform: translateX(100%); }
+.menu-slider.registry { transform: translateX(200%); }
+
 .menu-item {
-  padding: 6px 14px;
-  border-radius: 5px;
+  flex: 1;
+  min-width: 80px;
+  padding: 6px 12px;
+  border-radius: 6px;
   border: none;
   background: transparent;
-  color: #595959;
+  color: #64748b;
   font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 .menu-item.active {
-  background: #F2F3F5;
+  background: transparent;
   box-shadow: none;
-  font-weight: bold;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .ghost {
@@ -975,6 +1072,7 @@ h1 {
   font-size: 10px;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  transform: translateY(1.5px);
 }
 
 .more-version:hover {
