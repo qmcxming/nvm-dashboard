@@ -53,6 +53,7 @@ const switchingVersion = ref<string>('');
 const errorMessage = ref<string>('');
 const drawerOpen = ref<boolean>(false);
 const showInstructions = ref<boolean>(false);
+const showCommands = ref<boolean>(false);
 const viewMode = ref<'available' | 'installed' | 'registry'>('installed');
 const toasts = ref<{ id: number; message: string; type: 'error' | 'info' }[]>(
   [],
@@ -83,6 +84,10 @@ const pushCommand = (command: string) => {
   const filterCommand = commandTip.value.filter(item => item !== command);
   commandTip.value = [command, ...filterCommand].slice(0, 5);
 }
+
+const formatCommand = (cmd: string) => {
+  return cmd.replace(/^(nvm|npm)/, '<span style="color: #1677ff; font-weight: 600;">$1</span>');
+};
 
 const execNvm = (args: string) => {
   const services = (window as any).services;
@@ -401,9 +406,9 @@ onMounted(() => {
       </div>
     </transition>
     <header class="topbar">
-      <Tooltip :content="currentNodeNumber ? `当前 Node 版本: v${currentNodeNumber}` : currentNodeVersion" position="right" style="display: block;">
+      <Tooltip :content="currentNodeNumber ? `当前 Node 版本: v${currentNodeNumber}` : currentNodeVersion" position="right"
+        style="display: block;">
         <div class="current-node">
-          <!-- <p class="eyebrow">当前 Node 版本</p> -->
           <div class="version-badge">
             <span class="version-dot"></span>
             <h1>{{ currentNodeNumber ? `v${currentNodeNumber}` : currentNodeVersion }}</h1>
@@ -412,43 +417,24 @@ onMounted(() => {
       </Tooltip>
       <nav class="menu" aria-label="视图切换">
         <div class="menu-slider" :class="viewMode"></div>
-        <button
-          class="menu-item"
-          :class="{ active: viewMode === 'installed' }"
-          @click="viewMode = 'installed'"
-        >
+        <button class="menu-item" :class="{ active: viewMode === 'installed' }" @click="viewMode = 'installed'">
           已安装
         </button>
-        <button
-          class="menu-item"
-          :class="{ active: viewMode === 'available' }"
-          @click="viewMode = 'available'"
-        >
+        <button class="menu-item" :class="{ active: viewMode === 'available' }" @click="viewMode = 'available'">
           可用版本
         </button>
-        <button
-          class="menu-item"
-          :class="{ active: viewMode === 'registry' }"
-          @click="viewMode = 'registry'"
-        >
+        <button class="menu-item" :class="{ active: viewMode === 'registry' }" @click="viewMode = 'registry'">
           镜像源
         </button>
       </nav>
       <div class="actions">
         <Tooltip content="刷新全部" position="left">
-          <button
-            class="ghost"
-            :disabled="loadingAvailable || loadingInstalled"
-            @click="refreshAll"
-          >
+          <button class="ghost" :disabled="loadingAvailable || loadingInstalled" @click="refreshAll">
             <span class="icon" aria-hidden="true">
-              <svg
-                viewBox="0 0 1024 1024"
-              >
+              <svg viewBox="0 0 1024 1024">
                 <path
                   d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                  p-id="8853"
-                ></path>
+                  p-id="8853"></path>
               </svg>
             </span>
             刷新
@@ -456,17 +442,13 @@ onMounted(() => {
         </Tooltip>
         <button class="ghost" @click="drawerOpen = true" aria-label="打开设置">
           <span class="icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 1024 1024"
-            >
+            <svg viewBox="0 0 1024 1024">
               <path
                 d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56c10.1-8.6 13.8-22.6 9.3-35.2l-0.9-2.6c-18.1-50.5-44.9-96.9-79.7-137.9l-1.8-2.1c-8.6-10.1-22.5-13.9-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85c-2.4-13.1-12.7-23.3-25.8-25.7l-2.7-0.5c-52.1-9.4-106.9-9.4-159 0l-2.7 0.5c-13.1 2.4-23.4 12.6-25.8 25.7l-15.8 85.4c-35.9 13.6-69.2 32.9-99 57.4l-81.9-29.1c-12.5-4.4-26.5-0.7-35.1 9.5l-1.8 2.1c-34.8 41.1-61.6 87.5-79.7 137.9l-0.9 2.6c-4.5 12.5-0.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5c-10.1 8.6-13.8 22.6-9.3 35.2l0.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1c8.6 10.1 22.5 13.9 35.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4c2.4 13.1 12.7 23.3 25.8 25.7l2.7 0.5c26.1 4.7 52.8 7.1 79.5 7.1 26.7 0 53.5-2.4 79.5-7.1l2.7-0.5c13.1-2.4 23.4-12.6 25.8-25.7l15.7-85c36.2-13.6 69.7-32.9 99.7-57.6l81.3 28.9c12.5 4.4 26.5 0.7 35.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l0.9-2.6c4.5-12.3 0.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9c-11.3 26.1-25.6 50.7-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97c-28.1 3.2-56.8 3.2-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9z"
-                p-id="8639"
-              ></path>
+                p-id="8639"></path>
               <path
                 d="M512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176z m79.2 255.2C570 602.3 541.9 614 512 614c-29.9 0-58-11.7-79.2-32.8C411.7 560 400 531.9 400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8C612.3 444 624 472.1 624 502c0 29.9-11.7 58-32.8 79.2z"
-                p-id="8640"
-              ></path>
+                p-id="8640"></path>
             </svg>
           </span>
           设置
@@ -488,7 +470,8 @@ onMounted(() => {
           <div>
             <p class="card-title">
               可用版本
-              <span class="more-version" @click="openPreviousReleases" title="跳转 https://nodejs.org/zh-cn/about/previous-releases">
+              <span class="more-version" @click="openPreviousReleases"
+                title="跳转 https://nodejs.org/zh-cn/about/previous-releases">
                 更多版本
               </span>
             </p>
@@ -496,29 +479,18 @@ onMounted(() => {
           </div>
           <Tooltip content="刷新" position="left">
             <span class="icon refresh-icon" aria-hidden="true" @click="refreshAvailable">
-              <svg
-                viewBox="0 0 1024 1024"
-              >
+              <svg viewBox="0 0 1024 1024">
                 <path
                   d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                  p-id="8853"
-                ></path>
+                  p-id="8853"></path>
               </svg>
             </span>
           </Tooltip>
         </div>
         <div class="custom-install">
-          <input
-            v-model="customVersion"
-            class="input"
-            placeholder="输入版本号，例如 20.10.0"
-          />
-          <button
-            class="primary small"
-            style="height: 100%"
-            :disabled="!customVersion.trim() || installingVersion !== ''"
-            @click="handleCustomInstall"
-          >
+          <input v-model="customVersion" class="input" placeholder="输入版本号，例如 20.10.0" />
+          <button class="primary small" style="height: 100%"
+            :disabled="!customVersion.trim() || installingVersion !== ''" @click="handleCustomInstall">
             <span v-if="loadingCustomInstalled">正在安装中...</span>
             <span v-else>安装指定版本</span>
           </button>
@@ -534,21 +506,14 @@ onMounted(() => {
               <span v-if="loadingAvailable">加载中...</span>
               <span v-else @click="refreshAvailable">暂无可用版本(点此刷新)</span>
             </div>
-            <div
-              v-for="item in availableVersions"
-              :key="`available-${item.version}`"
-              class="table-row triple"
-              :class="{ current: item.version === currentNodeNumber }"
-            >
+            <div v-for="item in availableVersions" :key="`available-${item.version}`" class="table-row triple"
+              :class="{ current: item.version === currentNodeNumber }">
               <span class="mono">{{ item.version }}</span>
               <span class="tag" :class="{ muted: !item.label }">{{
                 item.label || '--'
               }}</span>
-              <button
-                class="primary small"
-                :disabled="installingVersion === item.version"
-                @click="handleInstall(item.version)"
-              >
+              <button class="primary small" :disabled="installingVersion === item.version"
+                @click="handleInstall(item.version)">
                 <span v-if="installingVersion === item.version">安装中...</span>
                 <span v-else>安装</span>
               </button>
@@ -563,16 +528,15 @@ onMounted(() => {
             <p class="card-title">已安装版本</p>
             <p class="card-subtitle">来自「nvm list」</p>
           </div>
-          <span class="icon refresh-icon" aria-hidden="true" @click="refreshInstalled" title="刷新">
-            <svg
-              viewBox="0 0 1024 1024"
-            >
-              <path
-                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                p-id="8853"
-              ></path>
-            </svg>
-          </span>
+          <Tooltip content="刷新" position="left">
+            <span class="icon refresh-icon" aria-hidden="true" @click="refreshInstalled">
+              <svg viewBox="0 0 1024 1024">
+                <path
+                  d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                  p-id="8853"></path>
+              </svg>
+            </span>
+          </Tooltip>
         </div>
         <div class="table-scroll">
           <div class="table">
@@ -586,34 +550,19 @@ onMounted(() => {
               <span v-if="loadingInstalled">加载中...</span>
               <span v-else @click="refreshInstalled">暂无已安装版本</span>
             </div>
-            <div
-              v-for="version in installedVersions"
-              :key="`installed-${version}`"
-              class="table-row quad"
-              :class="{ current: version === currentNodeNumber }"
-            >
+            <div v-for="version in installedVersions" :key="`installed-${version}`" class="table-row quad"
+              :class="{ current: version === currentNodeNumber }">
               <span class="mono">{{ version }}</span>
-              <span
-                class="pill"
-                :class="{ 'pill-current': version === currentNodeNumber }"
-              >
+              <span class="pill" :class="{ 'pill-current': version === currentNodeNumber }">
                 {{ version === currentNodeNumber ? '当前' : '已安装' }}
               </span>
-              <button
-                class="ghost small"
-                :disabled="
-                  switchingVersion === version || version === currentNodeNumber
-                "
-                @click="handleUse(version)"
-              >
+              <button class="ghost small" :disabled="switchingVersion === version || version === currentNodeNumber
+                " @click="handleUse(version)">
                 <span v-if="switchingVersion === version">切换中...</span>
                 <span v-else>使用</span>
               </button>
-              <button
-                class="ghost small danger"
-                :disabled="uninstallingVersion === version"
-                @click="handleUninstall(version)"
-              >
+              <button class="ghost small danger" :disabled="uninstallingVersion === version"
+                @click="handleUninstall(version)">
                 <span v-if="uninstallingVersion === version">卸载中...</span>
                 <span v-else>卸载</span>
               </button>
@@ -628,21 +577,15 @@ onMounted(() => {
             <p class="card-title">npm 镜像源</p>
             <p class="card-subtitle">当前「{{ currentRegistryLabel }}」</p>
           </div>
-          <span
-            class="icon refresh-icon"
-            aria-hidden="true"
-            @click="refreshRegistry"
-            title="刷新"
-          >
-            <svg
-              viewBox="0 0 1024 1024"
-            >
-              <path
-                d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
-                p-id="8853"
-              ></path>
-            </svg>
-          </span>
+          <Tooltip content="刷新" position="left">
+            <span class="icon refresh-icon" aria-hidden="true" @click="refreshRegistry">
+              <svg viewBox="0 0 1024 1024">
+                <path
+                  d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z"
+                  p-id="8853"></path>
+              </svg>
+            </span>
+          </Tooltip>
         </div>
         <div class="table-scroll">
           <div class="table">
@@ -651,21 +594,15 @@ onMounted(() => {
               <span>地址</span>
               <span>操作</span>
             </div>
-            <div
-              v-for="item in registryOptions"
-              :key="item.key"
-              class="table-row registry-row"
-              :class="{ current: normalizeRegistry(item.registry) === normalizeRegistry(currentRegistry) }"
-            >
+            <div v-for="item in registryOptions" :key="item.key" class="table-row registry-row"
+              :class="{ current: normalizeRegistry(item.registry) === normalizeRegistry(currentRegistry) }">
               <span class="mono">{{ item.label }}</span>
               <span class="registry">{{
                 item.registry || '--'
               }}</span>
-              <button
-                class="primary small"
+              <button class="primary small"
                 :disabled="settingRegistry === item.registry || normalizeRegistry(item.registry) === normalizeRegistry(currentRegistry)"
-                @click="handleSetRegistry(item)"
-              >
+                @click="handleSetRegistry(item)">
                 <span v-if="settingRegistry === item.registry">切换中...</span>
                 <span v-else>切换</span>
               </button>
@@ -683,79 +620,98 @@ onMounted(() => {
     </div>
 
     <transition name="drawer-mask">
-      <div
-        v-if="drawerOpen"
-        class="drawer-backdrop"
-        @click.self="drawerOpen = false"
-      >
-        <transition name="drawer-panel">
-          <aside v-if="drawerOpen" class="drawer">
-            <header>
-              <h2>设置</h2>
-              <button class="btn-close" @click="drawerOpen = false">×</button>
-            </header>
-            <div class="drawer-body">
-              <div class="setting-row">
-                <span>是否检测到 NVM</span>
-                <span :class="['pill', nvmInstalled ? 'pill-ok' : 'pill-warn']">
-                  {{ nvmInstalled ? '是' : '否' }}
-                </span>
-              </div>
-              <div class="setting-row">
-                <span>NVM 版本</span>
-                <span class="mono">{{ nvmVersion || '--' }}</span>
-              </div>
-              <div class="setting-row">
-                <span>快捷操作</span>
-                <div style="display: flex; gap: 8px;">
-                  <Tooltip content="一键配置 NVM 镜像
+      <div v-if="drawerOpen" class="drawer-backdrop" @click.self="drawerOpen = false"></div>
+    </transition>
+    <transition name="drawer-panel">
+      <aside v-if="drawerOpen" class="drawer">
+        <header>
+          <h2>设置</h2>
+          <button class="btn-close" @click="drawerOpen = false">×</button>
+        </header>
+        <div class="drawer-body">
+          <div class="setting-row">
+            <span>是否检测到 NVM</span>
+            <span :class="['pill', nvmInstalled ? 'pill-ok' : 'pill-warn']">
+              {{ nvmInstalled ? '是' : '否' }}
+            </span>
+          </div>
+          <div class="setting-row">
+            <span>NVM 版本</span>
+            <span class="mono">{{ nvmVersion || '--' }}</span>
+          </div>
+          <div class="setting-row">
+            <span>快捷操作</span>
+            <div style="display: flex; gap: 8px;">
+              <Tooltip content="一键配置 NVM 镜像
 nvm node_mirror https://npmmirror.com/mirrors/node/
-nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
-                    <button class="ghost small" @click="setNvmMirrors">
-                      NVM 镜像
-                    </button>
-                  </Tooltip>
-                  <Tooltip content="重新检测 NVM" position="left">
-                    <button class="primary small" @click="refreshAll">
-                      重新检测
-                    </button>
-                  </Tooltip>
-                </div>
-              </div>
-              <div class="setting-row">
-                <span>快速上手</span>
-                <button
-                  class="ghost small inline"
-                  @click="showInstructions = !showInstructions"
-                  :aria-expanded="showInstructions"
-                >
-                  <span v-if="showInstructions">收起</span>
-                  <span v-else>展开</span>
+nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="bottom">
+                <button class="ghost small" @click="setNvmMirrors">
+                  NVM 镜像
                 </button>
-              </div>
-              <transition name="collapse">
-                <div v-show="showInstructions" class="collapse-body">
-                  <ol style="margin:0 0 0 18px;padding:0">
-                    <li>若未检测到 NVM，请先安装 NVM for Windows。</li>
-                    <li>在<b>“可用版本”</b>中选择版本并点击<b>“安装”</b>。</li>
-                    <li>在<b>“已安装”</b>中切换或卸载已安装的版本。</li>
-                    <li>您也可以自行安装指定版本，即输入版本号，然后点击<b>“安装”</b>按钮。</li>
-                  </ol>
-                </div>
-              </transition>
+              </Tooltip>
+              <Tooltip content="重新检测 NVM" position="bottom">
+                <button class="primary small" @click="refreshAll">
+                  重新检测
+                </button>
+              </Tooltip>
             </div>
-          </aside>
-        </transition>
-      </div>
+          </div>
+          <div class="setting-row">
+            <span>快速上手</span>
+            <button class="ghost small inline" @click="showInstructions = !showInstructions"
+              :aria-expanded="showInstructions">
+              <span v-if="showInstructions">收起</span>
+              <span v-else>展开</span>
+            </button>
+          </div>
+          <transition name="collapse">
+            <div v-show="showInstructions" class="collapse-body">
+              <ol style="margin:0 0 0 18px;padding:0">
+                <li>若未检测到 NVM，请先安装 NVM for Windows。</li>
+                <li>在<b>“可用版本”</b>中选择版本并点击<b>“安装”</b>。</li>
+                <li>在<b>“已安装”</b>中切换或卸载已安装的版本。</li>
+                <li>您也可以自行安装指定版本，即输入版本号，然后点击<b>“安装”</b>按钮。</li>
+              </ol>
+            </div>
+          </transition>
+          <div class="setting-row">
+            <span>常用命令</span>
+            <button class="ghost small inline" @click="showCommands = !showCommands" :aria-expanded="showCommands">
+              <span v-if="showCommands">收起</span>
+              <span v-else>展开</span>
+            </button>
+          </div>
+          <transition name="collapse">
+            <div v-show="showCommands" class="collapse-body">
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div v-for="item in [
+                  { cmd: 'nvm current', desc: '查看当前正在使用的版本' },
+                  { cmd: 'nvm list available', desc: '查看所有可安装的版本列表' },
+                  { cmd: 'nvm list', desc: '查看本地已安装的版本' },
+                  { cmd: 'nvm use x.x.x', desc: '切换到指定的 Node.js 版本' },
+                  { cmd: 'nvm uninstall x.x.x', desc: '卸载指定的 Node.js 版本' },
+                  { cmd: 'nvm install x.x.x', desc: '安装指定的 Node.js 版本' },
+                  { cmd: 'nvm -v', desc: '查看 NVM 版本' },
+                  { cmd: 'npm config get registry', desc: '查看当前 npm 镜像源' },
+                  { cmd: 'npm config set registry https://registry.npmjs.org/', desc: '设置 npm 官方镜像源' },
+                  { cmd: 'nvm node_mirror https://npmmirror.com/mirrors/node/', desc: '设置 Node.js 淘宝镜像源' },
+                  { cmd: 'nvm npm_mirror https://npmmirror.com/mirrors/npm/', desc: '设置 npm 淘宝镜像源' }
+                ]" :key="item.cmd" style="display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 11px; color: #64748b; font-weight: 500;">{{ item.desc }}</span>
+                  <code
+                    style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #475569; border: 1px solid #e2e8f0;"
+                    v-html="formatCommand(item.cmd)">
+                  </code>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </aside>
     </transition>
 
     <div class="toast-stack">
-      <div
-        v-for="toast in toasts"
-        :key="toast.id"
-        class="toast"
-        :class="toast.type"
-      >
+      <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
         <span>{{ toast.message }}</span>
       </div>
     </div>
@@ -771,7 +727,7 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   min-height: calc(100vh - 30px);
   /* 字体 */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  
+
   /* 开启更平滑的字体抗锯齿表现（非常有必要） */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -828,9 +784,17 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
 }
 
 .version-badge h1 {
@@ -870,9 +834,17 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   z-index: -1;
 }
 
-.menu-slider.installed { transform: translateX(0); }
-.menu-slider.available { transform: translateX(100%); }
-.menu-slider.registry { transform: translateX(200%); }
+.menu-slider.installed {
+  transform: translateX(0);
+}
+
+.menu-slider.available {
+  transform: translateX(100%);
+}
+
+.menu-slider.registry {
+  transform: translateX(200%);
+}
 
 .menu-item {
   flex: 1;
@@ -1080,9 +1052,11 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
 }
 
 .card-subtitle {
-  margin: 4px 0 0;
-  color: #8c8c8c;
+  margin: 2px 0 12px;
+  color: #64748b;
   font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .refresh-icon {
@@ -1133,7 +1107,8 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   gap: 10px;
 }
 
-.registry-header, .registry-row {
+.registry-header,
+.registry-row {
   grid-template-columns: minmax(80px, 120px) 1fr auto;
   gap: 10px;
 }
@@ -1143,14 +1118,14 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   font-size: 12px;
 }
 
-.table-row.triple > *:nth-child(2),
-.table-row.triple > *:nth-child(3) {
+.table-row.triple>*:nth-child(2),
+.table-row.triple>*:nth-child(3) {
   justify-self: start;
 }
 
-.table-row.quad > *:nth-child(2),
-.table-row.quad > *:nth-child(3),
-.table-row.quad > *:nth-child(4) {
+.table-row.quad>*:nth-child(2),
+.table-row.quad>*:nth-child(3),
+.table-row.quad>*:nth-child(4) {
   justify-self: start;
 }
 
@@ -1211,11 +1186,13 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
 .pill-ok {
   background: #e5f6ed;
   color: #1a7f37;
+  border: 1px solid #bbf7d0;
 }
 
 .pill-warn {
   background: #fff1d6;
   color: #9a6a00;
+  border: 1px solid #9a6a00;
 }
 
 .pill-current {
@@ -1269,12 +1246,13 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  justify-content: flex-end;
   z-index: 10;
 }
 
 .drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
   width: 320px;
   height: 100%;
   background: #fff;
@@ -1283,7 +1261,8 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transform-origin: right center;
+  z-index: 11;
+  overflow: auto;
 }
 
 .global-loading {
@@ -1356,17 +1335,18 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
 
 .drawer-panel-enter-active,
 .drawer-panel-leave-active {
-  transition: transform 0.25s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .drawer-panel-enter-from,
 .drawer-panel-leave-to {
-  transform: translateX(100%) scale(0.98);
+  transform: translateX(100%);
 }
 
 .drawer-panel-enter-to,
 .drawer-panel-leave-from {
-  transform: translateX(0) scale(1);
+  transform: translateX(0);
 }
 
 .drawer header {
@@ -1384,6 +1364,7 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 30px;
 }
 
 .btn-close {
@@ -1414,6 +1395,7 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   padding: 10px 12px;
   background: #f7f7f7;
   border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 .mirror-url {
@@ -1429,18 +1411,22 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="left">
   margin-top: 0px;
   color: #444;
   font-size: 13px;
+  /* max-height: 180px; */
+  /* overflow-y: auto; */
 }
 
 .collapse-enter-active,
 .collapse-leave-active {
   transition: all 0.18s ease;
 }
+
 .collapse-enter-from,
 .collapse-leave-to {
   max-height: 0;
   opacity: 0;
   transform: translateY(-4px);
 }
+
 .collapse-enter-to,
 .collapse-leave-from {
   max-height: 400px;
