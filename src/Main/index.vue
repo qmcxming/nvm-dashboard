@@ -667,6 +667,7 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="bottom">
           <transition name="collapse">
             <div v-show="showInstructions" class="collapse-body">
               <ol style="margin:0 0 0 18px;padding:0">
+                <li>推荐使用1.1.11版本或1.2.x以上版本</li>
                 <li>若未检测到 NVM，请先安装 NVM for Windows。</li>
                 <li>在<b>“可用版本”</b>中选择版本并点击<b>“安装”</b>。</li>
                 <li>在<b>“已安装”</b>中切换或卸载已安装的版本。</li>

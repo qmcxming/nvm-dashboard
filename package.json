@@ -1,4 +1,10 @@
 {
+  "name": "nvm-dashboard",
+  "version": "1.0.1",
+  "author": {
+    "name": "青明尘下",
+    "email": "qmcx.ming@qq.com"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
