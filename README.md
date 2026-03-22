@@ -7,26 +7,17 @@
 
 ![nvm1.png](https://s3.bmp.ovh/2026/03/22/OvcECO5y.png)
 
-### 1、简述
+### 1、项目介绍
 
-使用uTools官方模板和Codex创建的项目，半AI半人工🤣。
+使用uTools官方模板和Codex开发的uTools插件。
 
 在v1.0.1版本中，使用Gemini优化部分UI样式以及动画效果。
 
-### 2、使用
+本插件依赖于[nvm-windows](https://github.com/coreybutler/nvm-windows)，对于其他平台，虽然已进行底层兼容性处理，但在非Windows平台上的稳定性尚未经过充分验证。
 
-- 本项目依托于nvm windows版，使用前请先安装nvm
-- 运行项目
-```sh
-# 安装依赖
-npm install
-# 运行项目
-npm run dev
-# 打包项目
-npm run build
-```
+[nvm-windows](https://github.com/coreybutler/nvm-windows)推荐使用1.1.11版本或1.2.x以上版本，否则可能会出现`NVM for Windows should be run from a terminal such as CMD or PowerShell`问题。
 
-### 3、功能介绍
+### 2、功能介绍
 
 1. **Node版本管理**
    - 查看当前Node版本
@@ -44,7 +35,7 @@ npm run build
 3. **npm源管理**
    - 支持查看、切换npm、yarn、taobao、tencent、cnpm等源。
 
-### 4、所用指令
+### 3、所用指令
 
 ```sh
 nvm current
