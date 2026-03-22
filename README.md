@@ -2,9 +2,13 @@
 
 > 这是一个基于NVM和uTools的可视化node版本管理应用。
 
+![nvm1.png](https://s3.bmp.ovh/2026/03/22/OvcECO5y.png)
+
 ### 1、简述
 
 使用uTools官方模板和Codex创建的项目，半AI半人工🤣。
+
+在v1.0.1版本中，使用Gemini优化部分UI样式以及动画效果。
 
 ### 2、使用
 
@@ -28,6 +32,7 @@ npm run build
    - 切换Node版本
    - 删除指定Node版本
    - 安装指定Node版本
+   - 一键设置NVM镜像配置
 
 2. **快速切换功能**
    - **Node版本快速切换**：在uTools输入“切换18”或“切换x.x.x”，或“node 18”或“node x.x.x”
@@ -35,8 +40,6 @@ npm run build
 
 3. **npm源管理**
    - 支持查看、切换npm、yarn、taobao、tencent、cnpm等源。
-
-![QQ_1771293658626.png](https://s3.bmp.ovh/2026/02/17/yrWkLTQb.png)
 
 ### 4、所用指令
 
