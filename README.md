@@ -2,6 +2,9 @@
 
 > 这是一个基于NVM和uTools的可视化node版本管理应用。
 
+- [GitHub](https://github.com/qmcxming/nvm-dashboard)
+- [uTools](https://u.tools/plugins/detail/NVM+Dashboard/?c=hj9li3rqmo)
+
 ![nvm1.png](https://s3.bmp.ovh/2026/03/22/OvcECO5y.png)
 
 ### 1、简述
