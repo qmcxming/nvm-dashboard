@@ -34,6 +34,10 @@ type RegistryOption = {
   registry: string;
 };
 
+type VersionNotes = Record<string, string>;
+
+const NOTE_STORAGE_KEY = 'nvm-dashboard:version-notes';
+const NOTE_MAX_LENGTH = 80;
 const availableVersions = ref<AvailableVersion[]>([]);
 const installedVersions = ref<string[]>([]);
 const nvmInstalled = ref<boolean>(false);
@@ -64,6 +68,9 @@ const commandTip = ref<string[]>([]);
 const currentRegistry = ref<string>('--');
 const loadingRegistry = ref<boolean>(false);
 const settingRegistry = ref<string>('');
+const versionNotes = ref<VersionNotes>({});
+const editingNoteVersion = ref<string>('');
+const noteDraft = ref<string>('');
 
 const registryOptions: RegistryOption[] = [
   { key: 'npm', label: 'npm', registry: 'https://registry.npmjs.org/' },
@@ -78,6 +85,92 @@ const currentRegistryLabel = computed(() => {
 })
 
 const normalizeRegistry = (value: string) => value.trim().replace(/\/+$/g, '/');
+
+const normalizeVersionNotes = (value: unknown): VersionNotes => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value as Record<string, unknown>).reduce<VersionNotes>(
+    (notes, [version, note]) => {
+      if (typeof note !== 'string') return notes;
+      const cleanVersion = version.trim();
+      const cleanNote = note.trim().slice(0, NOTE_MAX_LENGTH);
+      if (cleanVersion && cleanNote) {
+        notes[cleanVersion] = cleanNote;
+      }
+      return notes;
+    },
+    {},
+  );
+};
+
+const loadVersionNotes = () => {
+  try {
+    const dbStorage = (window as any).utools?.dbStorage;
+    const stored = dbStorage
+      ? dbStorage.getItem(NOTE_STORAGE_KEY)
+      : JSON.parse(localStorage.getItem(NOTE_STORAGE_KEY) || '{}');
+    versionNotes.value = normalizeVersionNotes(stored);
+  } catch {
+    versionNotes.value = {};
+  }
+};
+
+const persistVersionNotes = () => {
+  try {
+    const notes = { ...versionNotes.value };
+    const dbStorage = (window as any).utools?.dbStorage;
+    if (dbStorage) {
+      dbStorage.setItem(NOTE_STORAGE_KEY, notes);
+      return true;
+    }
+    localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
+    return true;
+  } catch {
+    setError('保存备注失败。');
+    return false;
+  }
+};
+
+const getVersionNote = (version: string) => versionNotes.value[version] || '';
+
+const startEditNote = (version: string) => {
+  editingNoteVersion.value = version;
+  noteDraft.value = getVersionNote(version);
+};
+
+const cancelEditNote = () => {
+  editingNoteVersion.value = '';
+  noteDraft.value = '';
+};
+
+const saveNote = (version: string) => {
+  const note = noteDraft.value.trim().slice(0, NOTE_MAX_LENGTH);
+  const nextNotes = { ...versionNotes.value };
+  if (note) {
+    nextNotes[version] = note;
+  } else {
+    delete nextNotes[version];
+  }
+  versionNotes.value = nextNotes;
+  const saved = persistVersionNotes();
+  cancelEditNote();
+  if (saved) {
+    setInfo(note ? `已保存 ${version} 的备注` : `已清空 ${version} 的备注`);
+  }
+};
+
+const clearVersionNote = (version: string, showToast = true) => {
+  if (!versionNotes.value[version]) return;
+  const nextNotes = { ...versionNotes.value };
+  delete nextNotes[version];
+  versionNotes.value = nextNotes;
+  persistVersionNotes();
+  if (showToast) {
+    setInfo(`已清空 ${version} 的备注`);
+  }
+};
 
 const pushCommand = (command: string) => {
   // 去重并限制最大长度为 5
@@ -328,6 +421,7 @@ const handleUninstall = async (version: string) => {
       const message = (result.stderr || result.stdout || '').trim();
       setError(message || '卸载后仍检测到该版本。');
     } else {
+      clearVersionNote(version, false);
       setInfo(`已卸载 ${version}`);
     }
   } catch (error: any) {
@@ -383,6 +477,7 @@ const openPreviousReleases = () => {
 };
 
 onMounted(() => {
+  loadVersionNotes();
   loadingAll.value = true;
   checkNvm().then(() => {
     if (!nvmInstalled.value) return;
@@ -543,6 +638,7 @@ onMounted(() => {
             <div class="table-row header quad">
               <span>版本</span>
               <span>状态</span>
+              <span>备注</span>
               <span>切换</span>
               <span>操作</span>
             </div>
@@ -556,6 +652,26 @@ onMounted(() => {
               <span class="pill" :class="{ 'pill-current': version === currentNodeNumber }">
                 {{ version === currentNodeNumber ? '当前' : '已安装' }}
               </span>
+              <div class="note-cell">
+                <template v-if="editingNoteVersion === version">
+                  <input v-model="noteDraft" class="note-input" :maxlength="NOTE_MAX_LENGTH" placeholder="例如：项目 A 使用"
+                    autofocus @keyup.enter="saveNote(version)" @keyup.esc="cancelEditNote" />
+                  <div class="note-actions">
+                    <button class="primary small compact" @click="saveNote(version)">保存</button>
+                    <button class="ghost small compact" @click="cancelEditNote">取消</button>
+                  </div>
+                </template>
+                <template v-else>
+                  <Tooltip :content="getVersionNote(version) || '添加备注'" position="top">
+                    <span class="note-text" :class="{ empty: !getVersionNote(version) }">
+                      {{ getVersionNote(version) || '未备注' }}
+                    </span>
+                  </Tooltip>
+                  <button class="ghost small compact" @click="startEditNote(version)">
+                    {{ getVersionNote(version) ? '编辑' : '备注' }}
+                  </button>
+                </template>
+              </div>
               <button class="ghost small" :disabled="switchingVersion === version || version === currentNodeNumber
                 " @click="handleUse(version)">
                 <span v-if="switchingVersion === version">切换中...</span>
@@ -927,9 +1043,17 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="bottom">
   font-size: 12px;
 }
 
+.primary.small.compact {
+  padding: 5px 8px;
+}
+
 .ghost.small {
   padding: 6px 12px;
   font-size: 12px;
+}
+
+.ghost.small.compact {
+  padding: 5px 8px;
 }
 
 .ghost.small.inline {
@@ -1104,8 +1228,9 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="bottom">
 }
 
 .table-row.quad {
-  grid-template-columns: 1fr minmax(70px, 110px) minmax(80px, 120px) auto;
+  grid-template-columns: minmax(90px, 1fr) minmax(70px, 90px) minmax(210px, 1.4fr) minmax(64px, 90px) auto;
   gap: 10px;
+  min-width: 690px;
 }
 
 .registry-header,
@@ -1126,8 +1251,55 @@ nvm npm_mirror https://npmmirror.com/mirrors/npm/" position="bottom">
 
 .table-row.quad>*:nth-child(2),
 .table-row.quad>*:nth-child(3),
-.table-row.quad>*:nth-child(4) {
+.table-row.quad>*:nth-child(4),
+.table-row.quad>*:nth-child(5) {
   justify-self: start;
+}
+
+.note-cell {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-text {
+  min-width: 0;
+  color: #475569;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-text.empty {
+  color: #94a3b8;
+}
+
+.note-input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 5px;
+  border: 1px solid #d9d9d9;
+  outline: none;
+  color: #1f1f1f;
+  background: #fff;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.note-input:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.note-actions {
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .table-row.current {
